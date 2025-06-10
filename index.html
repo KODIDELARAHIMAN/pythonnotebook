@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Notebook</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .cell {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .output {
+            background: #f0f0f0;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            border-left: 3px solid #ccc;
+        }
+        .toolbar {
+            margin-bottom: 20px;
+        }
+        button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Jupyter-Style Web Notebook</h1>
+    <div class="toolbar">
+        <button onclick="addCell()">+ Add Cell</button>
+    </div>
+    <div id="notebook"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+    <script>
+        let cellCount = 0;
+        const editorMap = {};
+
+        function addCell(code = '', output = '', image = '') {
+            const notebook = document.getElementById('notebook');
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.innerHTML = `
+                <textarea id="code-${cellCount}">${code}</textarea>
+                <br>
+                <button onclick="runCode(${cellCount})">Run</button>
+                <div id="output-${cellCount}" class="output">${output}</div>
+                <img id="image-${cellCount}" style="max-width:100%; margin-top:10px; display:none;" />
+            `;
+            notebook.appendChild(cell);
+
+            const editor = CodeMirror.fromTextArea(document.getElementById(`code-${cellCount}`), {
+                lineNumbers: true,
+                mode: 'python',
+                theme: 'default'
+            });
+            editor.setSize("100%", "150px");
+            editorMap[cellCount] = editor;
+            cellCount++;
+        }
+
+        function runCode(id) {
+            const code = editorMap[id].getValue();
+            fetch('/run_code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById(`output-${id}`).textContent = data.output;
+                const img = document.getElementById(`image-${id}`);
+                if (data.image) {
+                    img.src = 'data:image/png;base64,' + data.image;
+                    img.style.display = 'block';
+                } else {
+                    img.style.display = 'none';
+                }
+            });
+        }
+
+        // Add initial cell
+        addCell();
+    </script>
+</body>
+</html>
+
